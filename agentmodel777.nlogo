@@ -1,18 +1,59 @@
+extensions [matrix]
+
 globals [
   seat-color          ;; Economy class seat color
   galley-color        ;; Color representing the galley area
   toilet-color        ;; Color of the toilet area
   total_sections      ;; Total number of sections o the Y-class
   total_rows          ;; Total number of rows per section
+  seats-coord         ;; List that contain the coordinate of all the seats in the aircraft
+
 ]
 
-breed [seats seat]
+breed [paxs pax]
+paxs-own [ wait-time eaten? happy? ]
 
 to setup
+  clear-all
+
   initialize-globals
+
+  ;; Creating the aircraft patches
   generate-seatmap
   generate-toilets
   generate-galleys
+
+  ;; Creating PAXs agents
+  generate-pax
+
+  ;; Creting Crew agents
+
+end
+
+;;
+;; To setup the position of the pax, a list with the seat coordinates (seats-coord) generated from the "generate-seatmap" function is used.
+;;      - For each pax, a random index to access seats-coord is generated with the current size of that list.
+;;      - The item with the random index is removed from the list (updating its size for the next pax agent).
+;;      - No pax can have the same seat using this logic and the index will always exist, since the length of the list is recalculated to generate the random index for the next pax.
+;;
+to generate-pax
+  create-paxs total-pax
+  ;; Chose a random number between 0 and 179 (180 seats)
+  ;; If seats taken, chose another number
+  ask paxs
+  [
+    set color green
+    set shape "person"
+
+    ;; Seat selection
+    let seat-coord-index random length seats-coord ;; Will indicate seat index in the list of seat coordinates (seats-coord)
+    let new_pax_seat remove-item seat-coord-index seats-coord ;; Retrieving pax new seat position
+    set label test
+    ;;set label last new_pax_seat ;; Y coord
+
+    setxy random-xcor random-ycor
+
+  ]
 end
 
 
@@ -22,6 +63,8 @@ to initialize-globals
   set toilet-color red
   set total_sections 2
   set total_rows 18
+  set seats-coord (list)   ;; Empty list
+
 end
 
 ;; Right-hand-side of the plane
@@ -44,6 +87,10 @@ to generate-seatmap
       ask patches with [ pxcor = x_cord + 2 and pycor = y_cord ] [ set pcolor seat-color set plabel "B"]
       ask patches with [ pxcor = x_cord + 3 and pycor = y_cord ] [ set pcolor seat-color set plabel "C"]
 
+      let seat_position_A (list (x_cord + 1) (y_cord)) set seats-coord lput seat_position_A seats-coord
+      let seat_position_B (list (x_cord + 2) (y_cord)) set seats-coord lput seat_position_B seats-coord
+      let seat_position_C (list (x_cord + 3) (y_cord)) set seats-coord lput seat_position_C seats-coord
+
       ;; Aisle
 
 
@@ -53,6 +100,12 @@ to generate-seatmap
       ask patches with [ pxcor = x_cord + 7 and pycor = y_cord ] [ set pcolor seat-color set plabel "F"]
       ask patches with [ pxcor = x_cord + 8 and pycor = y_cord ] [ set pcolor seat-color set plabel "G"]
 
+
+      let seat_position_D (list (x_cord + 5) (y_cord)) set seats-coord lput seat_position_D seats-coord
+      let seat_position_E (list (x_cord + 6) (y_cord)) set seats-coord lput seat_position_E seats-coord
+      let seat_position_F (list (x_cord + 7) (y_cord)) set seats-coord lput seat_position_F seats-coord
+      let seat_position_G (list (x_cord + 8) (y_cord)) set seats-coord lput seat_position_G seats-coord
+
       ;; Aisle
 
       ;; Seats  H J K
@@ -61,11 +114,17 @@ to generate-seatmap
       ask patches with [ pxcor = x_cord + 12 and pycor = y_cord ] [ set pcolor seat-color set plabel "K"]
 
 
+      let seat_position_H (list (x_cord + 10) (y_cord)) set seats-coord lput seat_position_H seats-coord
+      let seat_position_J (list (x_cord + 11) (y_cord)) set seats-coord lput seat_position_J seats-coord
+      let seat_position_K (list (x_cord + 12) (y_cord)) set seats-coord lput seat_position_K seats-coord
+
       ;; Set row number label
       ask patches with [ (pxcor = -7 or pxcor = 8) and ( pycor = y_cord)] [set plabel (row_index + 1)  + (18 * section_index)] ; When first section (section_index = 0) the row number doesn't offset.
 
       set row_index row_index + 1
       set y_cord y_cord - 1
+
+
     ]
 
     ;; Leave empty space for galleys
@@ -103,9 +162,9 @@ to generate-toilets
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
+327
 10
-779
+896
 580
 -1
 -1
@@ -145,6 +204,36 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+22
+66
+194
+99
+total-crew
+total-crew
+1
+18
+6.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+22
+105
+194
+138
+total-pax
+total-pax
+0
+180
+1.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?

@@ -1,21 +1,31 @@
-extensions [matrix]
-
 globals [
   seat-color          ;; Economy class seat color
   galley-color        ;; Color representing the galley area
   toilet-color        ;; Color of the toilet area
+  pax-color           ;; Color of pax
+  crew-color          ;; Color of crew
   total_sections      ;; Total number of sections o the Y-class
   total_rows          ;; Total number of rows per section
-  seats-coord         ;; List that contain the coordinate of all the seats in the aircraft
+  seats-coord         ;; List that contains the coordinate of all the seats in the aircraft
+  mid-galley-coord    ;; List that contains the coordinate for patches of the mid galley
+  aft-galley-coord    ;; List that contains the coordinate for patches of the aft galley
+  patience-randomness ;; Different level of patience passengers can take
 
 ]
 
 breed [paxs pax]
-paxs-own [ wait-time eaten? happy? ]
+paxs-own [ wait-time patience eaten? happy? ]
+
+breed [crews crew]
+
+breed [carts cart]
+carts-own [ total-trays ]
+
 
 to setup
   clear-all
 
+  ;; Initialize global variables
   initialize-globals
 
   ;; Creating the aircraft patches
@@ -27,8 +37,27 @@ to setup
   generate-pax
 
   ;; Creting Crew agents
+  generate-crew
 
 end
+
+to initialize-globals
+  set seat-color blue
+  set galley-color grey
+  set toilet-color red
+  set pax-color green
+  set crew-color orange
+
+  set total_sections 2
+  set total_rows 18
+  set seats-coord []   ;; Empty list
+  set mid-galley-coord [] ;; Empty list
+  set aft-galley-coord [] ;; Empty list
+
+  set patience-randomness 1000
+
+end
+
 
 ;;
 ;; To setup the position of the pax, a list with the seat coordinates (seats-coord) generated from the "generate-seatmap" function is used.
@@ -42,30 +71,88 @@ to generate-pax
   ;; If seats taken, chose another number
   ask paxs
   [
-    set color green
-    set shape "person"
+    set color pax-color
+    set shape "face happy"
 
-    ;; Seat selection
+    set wait-time 0
+    set patience random patience-randomness ;;
+    set eaten? False
+    set happy? True
+
+    ;; Seat allocation
     let seat-coord-index random length seats-coord ;; Will indicate seat index in the list of seat coordinates (seats-coord)
-    let new_pax_seat remove-item seat-coord-index seats-coord ;; Retrieving pax new seat position
-    set label test
-    ;;set label last new_pax_seat ;; Y coord
-
-    setxy random-xcor random-ycor
+    let new_pax_seat item seat-coord-index seats-coord ;; Retrieving pax new seat position
+    set seats-coord remove-item seat-coord-index seats-coord ;; Remove from the list
+    setxy first new_pax_seat last new_pax_seat
 
   ]
 end
 
+to generate-crew
+  create-crews total-crew
 
-to initialize-globals
-  set seat-color blue
-  set galley-color grey
-  set toilet-color red
-  set total_sections 2
-  set total_rows 18
-  set seats-coord (list)   ;; Empty list
+  let total-crew-mid 0
+  let total-crew-aft 0
+
+  ;; Determine ammount of crew in each galley
+  ifelse (total-crew = 1) [
+      ;;Crew = 1 - place back-galley
+      set total-crew-aft 1
+      set total-crew-mid 0
+    ]
+    [
+      ifelse (total-crew = 2)[
+        ;;Crew = 2 - place 1 mid and one back galley
+        set total-crew-aft 1
+        set total-crew-mid 1
+      ]
+      [
+        ;;Crew > 2 - 2 at mid-galley and rest at the back
+        set total-crew-aft total-crew - 2
+        set total-crew-mid 2
+      ]
+    ]
+
+  ask crews
+  [
+    set color crew-color
+    set shape "person"
+
+
+    ifelse (total-crew-mid > 0)
+    [
+      ;; Populating mid-galley
+
+      ;; Crew random mid galley allocation
+      let mid-coord-index random length mid-galley-coord ;; Will indicate mid-galley patch index in the list of mid-galley patches coordinates (mid-galley-coord)
+      let new_crew_posn item mid-coord-index mid-galley-coord ;; Retrieving pax new seat position
+      set mid-galley-coord remove-item mid-coord-index mid-galley-coord ;; Remove from the list
+
+      setxy first new_crew_posn last new_crew_posn
+
+
+      set total-crew-mid total-crew-mid - 1
+    ]
+    [
+      ;; Populating aft-galley
+
+      ;; Crew random aft galley allocation
+      let aft-coord-index random length aft-galley-coord ;; Will indicate mid-galley patch index in the list of mid-galley patches coordinates (mid-galley-coord)
+      let new_crew_posn item aft-coord-index aft-galley-coord ;; Retrieving pax new seat position
+      set aft-galley-coord remove-item aft-coord-index aft-galley-coord ;; Remove from the list
+
+      setxy first new_crew_posn last new_crew_posn
+
+      set total-crew-aft total-crew-aft - 1
+    ]
+
+  ]
+
+
+
 
 end
+
 
 ;; Right-hand-side of the plane
 to generate-seatmap
@@ -137,11 +224,40 @@ end
 
 to generate-galleys
   let x_cord -6
-  ;; FWD Galley
-   ask patches with [ (pxcor >= x_cord + 5 and pxcor <= x_cord + 8) and (pycor <= max-pycor - total_rows - 4 and pycor >= max-pycor - total_rows - 7) ][ set pcolor galley-color ]
+  ;; MID Galley
+  ask patches with [ (pxcor >= x_cord + 5 and pxcor <= x_cord + 8) and (pycor <= max-pycor - total_rows - 4 and pycor >= max-pycor - total_rows - 7) ][ set pcolor galley-color ]
+
+  ;; Save mid galley coordinates for crew creation
+  let mid-index-x (x_cord + 5)
+  let mid-index-y (max-pycor - total_rows - 4)
+  while [mid-index-x <= (x_cord + 8)]
+  [
+    while [mid-index-y >= (max-pycor - total_rows - 7)]
+    [
+      set mid-galley-coord lput (list (mid-index-x) (mid-index-y)) mid-galley-coord ;; Save galley patch coordinate
+      set mid-index-y mid-index-y - 1;
+    ]
+    set mid-index-x mid-index-x + 1;
+  ]
+
+
 
   ;; AFT Galley
   ask patches with [ (pxcor >= x_cord + 5 and pxcor <= x_cord + 8) and (pycor <= max-pycor -(2 * total_rows) - 8 and pycor >= max-pycor - (2 * total_rows) - 11) ] [ set pcolor galley-color ]
+
+  ;; Save aft galley coordinates for crew creation
+  let aft-index-x (x_cord + 5)
+  let aft-index-y ( max-pycor -(2 * total_rows) - 8)
+  while [aft-index-x <= (x_cord + 8)]
+  [
+    while [aft-index-y >= (max-pycor - (2 * total_rows) - 11)]
+    [
+      set aft-galley-coord lput (list (aft-index-x) (aft-index-y)) aft-galley-coord ;; Save galley patch coordinate
+      set aft-index-y aft-index-y - 1;
+    ]
+    set aft-index-x aft-index-x + 1;
+  ]
+
 end
 
 to generate-toilets
@@ -214,7 +330,7 @@ total-crew
 total-crew
 1
 18
-6.0
+7.0
 1
 1
 NIL
@@ -228,8 +344,8 @@ SLIDER
 total-pax
 total-pax
 0
-180
-1.0
+360
+41.0
 1
 1
 NIL

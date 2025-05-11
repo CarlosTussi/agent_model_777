@@ -14,12 +14,63 @@ globals [
 ]
 
 breed [paxs pax]
-paxs-own [ wait-time patience eaten? happy? ]
+paxs-own [ patience eaten? happy? ]
 
 breed [crews crew]
+crews-own [ total-trays start-row]
 
-breed [carts cart]
-carts-own [ total-trays ]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                          ;
+;    Simulation Functions  ;
+;                          ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to go
+    ; 1 Crew:
+    ;- Moves to its star-row
+    ;- Folowing the order Outboard (window-middle-aisle) and Inboard(middle-aisle)
+           ;- Check if there is passengers and if you have trays left
+              ;- If there is, serve the passenger.
+              ;- If there is not, return to load more trays in the galley.
+
+
+  update-pax
+  tick
+
+end
+
+
+to update-pax
+  ask paxs
+  [
+    ifelse (eaten? = True)
+    [
+      set shape "face happy"
+      set color green
+    ]
+    [
+      if(ticks > patience)
+      [
+        set shape "face sad"
+        set color red
+      ]
+    ]
+  ]
+
+end
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                              ;
+;   Initialization Functions   ;
+;                              ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 
 to setup
@@ -39,14 +90,16 @@ to setup
   ;; Creting Crew agents
   generate-crew
 
+
+  reset-ticks
 end
 
 to initialize-globals
   set seat-color blue
   set galley-color grey
   set toilet-color red
-  set pax-color green
-  set crew-color orange
+  set pax-color yellow
+  set crew-color magenta
 
   set total_sections 2
   set total_rows 18
@@ -72,10 +125,9 @@ to generate-pax
   ask paxs
   [
     set color pax-color
-    set shape "face happy"
+    set shape "face neutral"
 
-    set wait-time 0
-    set patience random patience-randomness ;;
+    set patience 300 + random patience-randomness ;;
     set eaten? False
     set happy? True
 
@@ -95,23 +147,27 @@ to generate-crew
   let total-crew-aft 0
 
   ;; Determine ammount of crew in each galley
-  ifelse (total-crew = 1) [
+  ifelse (total-crew = 1)
+  [
       ;;Crew = 1 - place back-galley
       set total-crew-aft 1
       set total-crew-mid 0
-    ]
-    [
-      ifelse (total-crew = 2)[
-        ;;Crew = 2 - place 1 mid and one back galley
+  ]
+  [
+     ifelse (total-crew = 2)
+     [
+       ;;Crew = 2 - place 1 mid and one back galley
         set total-crew-aft 1
         set total-crew-mid 1
-      ]
-      [
-        ;;Crew > 2 - 2 at mid-galley and rest at the back
-        set total-crew-aft total-crew - 2
-        set total-crew-mid 2
-      ]
-    ]
+     ]
+     [
+       ;; total-crew > 2
+       set total-crew-aft ceiling (total-crew / 2)
+       set total-crew-mid floor (total-crew / 2)
+     ; set total-crew-aft 3
+     ; set total-crew-mid 2
+     ]
+  ]
 
   ask crews
   [
@@ -232,6 +288,7 @@ to generate-galleys
   let mid-index-y (max-pycor - total_rows - 4)
   while [mid-index-x <= (x_cord + 8)]
   [
+    set mid-index-y (max-pycor - total_rows - 4)
     while [mid-index-y >= (max-pycor - total_rows - 7)]
     [
       set mid-galley-coord lput (list (mid-index-x) (mid-index-y)) mid-galley-coord ;; Save galley patch coordinate
@@ -250,6 +307,7 @@ to generate-galleys
   let aft-index-y ( max-pycor -(2 * total_rows) - 8)
   while [aft-index-x <= (x_cord + 8)]
   [
+    set aft-index-y ( max-pycor -(2 * total_rows) - 8)
     while [aft-index-y >= (max-pycor - (2 * total_rows) - 11)]
     [
       set aft-galley-coord lput (list (aft-index-x) (aft-index-y)) aft-galley-coord ;; Save galley patch coordinate
@@ -298,8 +356,8 @@ GRAPHICS-WINDOW
 25
 -25
 25
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -330,7 +388,7 @@ total-crew
 total-crew
 1
 18
-7.0
+1.0
 1
 1
 NIL
@@ -345,11 +403,28 @@ total-pax
 total-pax
 0
 360
-41.0
+360.0
 1
 1
 NIL
 HORIZONTAL
+
+BUTTON
+129
+20
+192
+53
+go
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?

@@ -10,15 +10,28 @@ globals [
   mid-galley-coord    ;; List that contains the coordinate for patches of the mid galley
   aft-galley-coord    ;; List that contains the coordinate for patches of the aft galley
   patience-randomness ;; Different level of patience passengers can take
-
+  max-trays           ;; Max number of trays a crew can carry
+  _A
+  _B
+  _C
+  _D
+  _E
+  _F
+  _G
+  _H
+  _J
+  _K
 ]
 
 breed [paxs pax]
 paxs-own [ patience eaten? happy? ]
 
 breed [crews crew]
-crews-own [ total-trays start-row]
-
+crews-own [ total-trays target-row current-serving-seat mission]
+;; Mission: what the crew is doing
+;; - Moving to position = 1
+;; - Serving Pax = 2
+;; - Re-stocking trays = 3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -29,6 +42,13 @@ crews-own [ total-trays start-row]
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to go
+  update-crew
+  update-pax
+  tick
+
+end
+
+to update-crew
     ; 1 Crew:
     ;- Moves to its star-row
     ;- Folowing the order Outboard (window-middle-aisle) and Inboard(middle-aisle)
@@ -37,19 +57,119 @@ to go
               ;- If there is not, return to load more trays in the galley.
 
 
-  update-pax
-  tick
+
+  ask crews
+  [
+    ;; Moving to position
+    ifelse(mission = 1)[ move-crew-to-position ]
+    [
+      ;; Serving PAX
+      ifelse (mission = 2) [ serve-pax ]
+      [
+        ;; Re-stocking trays
+        ifelse (mission = 3) [ restock-trays ]
+        [
+          ;; POSSIBLY SOME OTHER CREW ACTION
+        ]
+      ]
+    ]
+
+
+  ]
+
 
 end
 
+;; Mission 1: move crew to position
+to move-crew-to-position
+    let x_cord -6 ;;Default LHS for now
+
+   ;;Current
+    ifelse (xcor > x_cord + 4)
+    [
+      set xcor xcor - 1
+    ]
+    [
+      ifelse (ycor < target-row)
+      [
+        set ycor ycor + 1
+      ]
+      [
+         ;;Position arrived, change mission to "Feed pax"
+         set mission 2
+      ]
+  ]
+
+end
+
+;; Mission 2: feed pax
+to serve-pax
+ ;;If still have trays
+  ifelse (total-trays > 0)
+  [
+    ;;Serve pax
+    let crew_x xcor ;;Current X crew coordinate to check for pax
+    let crew_y ycor ;; Current Y crew coordinate to check for pax
+    let tray_delivered? False ;;Flas that indicates that a paxhas been fed
+    let seat_x current-serving-seat;; Indicate that a new seat letter
+
+     ;;Checking if there exists a pax to feed
+     if any? paxs with [xcor = crew_x + seat_x and ycor = crew_y]
+     [
+       ask paxs with [xcor = crew_x + seat_x and ycor = crew_y]
+       [
+         ;; Feed the pax
+         if (not eaten?)[ set eaten? true set tray_delivered? True]
+       ]
+     ]
+     ;; Update tray count from the crew
+     if (tray_delivered? = True) [set total-trays total-trays - 1 ]
+
+     ;;update current serving seat
+     update-serving-seat-lhs
+  ]
+  ;; If no more trays, change mission to 3 (re-stock trays)
+  [
+    set mission 3
+  ]
+end
+
+;; Mission 3: Restock trays
+to restock-trays
+  ;; Move crew to the aft galley to replenish trays
+  ifelse (ycor > (max-pycor - total_rows - 4))
+  [ set ycor ycor - 1 ]
+  [ set xcor xcor + 1
+    set total-trays max-trays
+    set mission 1
+  ]
+end
+
+to update-serving-seat-lhs
+  ;; Checking end of outboard seats
+  ifelse (current-serving-seat = _C)
+  [ set current-serving-seat _D ]
+  ;;Checking end of inboard seats
+  [ ifelse (current-serving-seat = _E)
+    ;;Crew finished the row
+    [ set current-serving-seat _A
+      set ycor ycor - 1]
+    ;; Default case: serve the adjacent seat
+    [ set current-serving-seat current-serving-seat + 1
+      set target-row ycor]
+  ]
+
+
+end
 
 to update-pax
   ask paxs
   [
-    ifelse (eaten? = True)
+    ifelse (eaten? = true)
     [
       set shape "face happy"
       set color green
+      set happy? true
     ]
     [
       if(ticks > patience)
@@ -101,11 +221,24 @@ to initialize-globals
   set pax-color yellow
   set crew-color magenta
 
+  set max-trays 39;
   set total_sections 2
   set total_rows 18
   set seats-coord []   ;; Empty list
   set mid-galley-coord [] ;; Empty list
   set aft-galley-coord [] ;; Empty list
+
+  ;; X offset for the pax seat letters
+  set _A -3
+  set _B -1
+  set _C  0
+  set _D  1
+  set _E  2
+  set _F  3
+  set _G  4
+  set _H  6
+  set _J  7
+  set _K  8
 
   set patience-randomness 1000
 
@@ -173,7 +306,10 @@ to generate-crew
   [
     set color crew-color
     set shape "person"
-
+    set target-row max-pycor - 4 ; First row LHS
+    set total-trays max-trays
+    set current-serving-seat _A
+    set mission 1 ;;Moving to position
 
     ifelse (total-crew-mid > 0)
     [

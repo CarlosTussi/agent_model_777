@@ -21,13 +21,29 @@ globals [
   _H
   _J
   _K
+
+  LHS_aisle_x     ;;X coordinate of LHS aisle
+  RHS_aisle_x     ;;X coordinate of RHS aisle
+
+  total-eaten     ;; Total number of PAX that have eaten (stop criteria)
 ]
 
 breed [paxs pax]
-paxs-own [ patience eaten? happy? ]
+paxs-own [
+           patience
+           eaten?
+           happy?
+         ]
 
 breed [crews crew]
-crews-own [ total-trays target-row current-serving-seat mission]
+crews-own [
+            total-trays
+            target-row            ;; Indicate row where crew should be
+            current-serving-seat  ;; Indicate which is the current seat letter that the crew should serve
+            mission               ;; Indicate what the crew should be doing: serving pax, moving to position or restocking trays.
+            side                  ;; Indicate which side the crew should start serving
+          ]
+
 ;; Mission: what the crew is doing
 ;; - Moving to position = 1
 ;; - Serving Pax = 2
@@ -41,10 +57,17 @@ crews-own [ total-trays target-row current-serving-seat mission]
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+;; 1 Crew - Start RHS when finished
+;; 2 Crew - Each one at one side
+;; + 2 crew even - start from where other crew started + 39
+;; 2 crew odd -
+
 to go
   update-crew
   update-pax
   tick
+  set total-eaten show count paxs with [eaten? =  True]
 
 end
 
@@ -82,23 +105,35 @@ end
 
 ;; Mission 1: move crew to position
 to move-crew-to-position
-    let x_cord -6 ;;Default LHS for now
 
-   ;;Current
-    ifelse (xcor > x_cord + 4)
-    [
-      set xcor xcor - 1
-    ]
+  ifelse(side = "LHS")
+  [
+    ;;LHS crew
+    ifelse (xcor > LHS_aisle_x)
+    [ set xcor xcor - 1 ]
     [
       ifelse (ycor < target-row)
-      [
-        set ycor ycor + 1
-      ]
+      [ set ycor ycor + 1 ]
       [
          ;;Position arrived, change mission to "Feed pax"
          set mission 2
       ]
+   ]
   ]
+  [
+    ;;RHS crew
+    ifelse (xcor < RHS_aisle_x)
+    [ set xcor xcor + 1 ]
+    [
+      ifelse (ycor < target-row)
+      [ set ycor ycor + 1 ]
+      [
+         ;;Position arrived, change mission to "Feed pax"
+         set mission 2
+      ]
+   ]
+  ]
+
 
 end
 
@@ -126,7 +161,7 @@ to serve-pax
      if (tray_delivered? = True) [set total-trays total-trays - 1 ]
 
      ;;update current serving seat
-     update-serving-seat-lhs
+     update-serving-seat
   ]
   ;; If no more trays, change mission to 3 (re-stock trays)
   [
@@ -137,26 +172,49 @@ end
 ;; Mission 3: Restock trays
 to restock-trays
   ;; Move crew to the aft galley to replenish trays
-  ifelse (ycor > (max-pycor - total_rows - 4))
+  ifelse (ycor > max-pycor -(2 * total_rows) - 8)
   [ set ycor ycor - 1 ]
-  [ set xcor xcor + 1
+  [
+    ;;Coming back from LHS
+    ifelse(side = "LHS")[set xcor xcor + 1]
+    ;;Coming back from RHS
+    [ set xcor xcor - 1]
     set total-trays max-trays
     set mission 1
   ]
 end
 
-to update-serving-seat-lhs
-  ;; Checking end of outboard seats
-  ifelse (current-serving-seat = _C)
-  [ set current-serving-seat _D ]
-  ;;Checking end of inboard seats
-  [ ifelse (current-serving-seat = _E)
-    ;;Crew finished the row
-    [ set current-serving-seat _A
-      set ycor ycor - 1]
-    ;; Default case: serve the adjacent seat
-    [ set current-serving-seat current-serving-seat + 1
-      set target-row ycor]
+to update-serving-seat
+  ifelse(side = "LHS")
+  [
+    ;;Servinh LHS
+    ;; Checking end of outboard seats
+    ifelse (current-serving-seat = _C)
+    [ set current-serving-seat _D ]
+    ;;Checking end of inboard seats
+    [ ifelse (current-serving-seat = _E)
+      ;;Crew finished the row
+      [ set current-serving-seat _A
+        set ycor ycor - 1]
+      ;; Default case: serve the adjacent seat
+      [ set current-serving-seat current-serving-seat + 1
+        set target-row ycor]
+    ]
+  ]
+  [
+    ;;Servinh RHS
+     ;; Checking end of outboard seats
+    ifelse (current-serving-seat = _H)
+    [ set current-serving-seat _G ]
+    ;;Checking end of inboard seats
+    [ ifelse (current-serving-seat = _F)
+      ;;Crew finished the row
+      [ set current-serving-seat _K
+        set ycor ycor - 1]
+      ;; Default case: serve the adjacent seat
+      [ set current-serving-seat current-serving-seat - 1
+        set target-row ycor]
+    ]
   ]
 
 
@@ -230,15 +288,18 @@ to initialize-globals
 
   ;; X offset for the pax seat letters
   set _A -3
-  set _B -1
-  set _C  0
+  set _B -2
+  set _C -1
   set _D  1
   set _E  2
-  set _F  3
-  set _G  4
-  set _H  6
-  set _J  7
-  set _K  8
+  set _F  -2
+  set _G  -1
+  set _H  1
+  set _J  2
+  set _K  3
+
+  set LHS_aisle_x -2
+  set RHS_aisle_x 3
 
   set patience-randomness 1000
 
@@ -308,7 +369,6 @@ to generate-crew
     set shape "person"
     set target-row max-pycor - 4 ; First row LHS
     set total-trays max-trays
-    set current-serving-seat _A
     set mission 1 ;;Moving to position
 
     ifelse (total-crew-mid > 0)
@@ -324,6 +384,8 @@ to generate-crew
 
 
       set total-crew-mid total-crew-mid - 1
+      set side "LHS"
+      set current-serving-seat _A
     ]
     [
       ;; Populating aft-galley
@@ -336,6 +398,8 @@ to generate-crew
       setxy first new_crew_posn last new_crew_posn
 
       set total-crew-aft total-crew-aft - 1
+      set side "RHS"
+      set current-serving-seat _K
     ]
 
   ]
@@ -346,7 +410,7 @@ to generate-crew
 end
 
 
-;; Right-hand-side of the plane
+;; Generate seats LHS and RHS
 to generate-seatmap
 
   let section_index 0
@@ -524,7 +588,7 @@ total-crew
 total-crew
 1
 18
-1.0
+4.0
 1
 1
 NIL

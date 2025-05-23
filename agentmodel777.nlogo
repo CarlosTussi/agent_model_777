@@ -453,7 +453,7 @@ to generate-crew
 
   ask crews
   [
-    ;set color crew-color
+    set color crew-color
     set shape "person"
     set target-row max-pycor - 4 ; First row LHS
     set total-trays max-trays
@@ -743,7 +743,7 @@ CHOOSER
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
-2
+1
 
 @#$#@#$#@
 ## WHAT IS IT?

@@ -10,6 +10,7 @@ globals [
   mid-galley-coord    ;; List that contains the coordinate for patches of the mid galley
   aft-galley-coord    ;; List that contains the coordinate for patches of the aft galley
   patience-randomness ;; Different level of patience passengers can take
+  min-patience        ;; The quantification of minimum pax patience
   max-trays           ;; Max number of trays a crew can carry
   _A
   _B
@@ -26,6 +27,7 @@ globals [
   RHS_aisle_x     ;;X coordinate of RHS aisle
 
   total-eaten     ;; Total number of PAX that have eaten (stop criteria)
+  last-row        ;;Indicate the last row to serve
 ]
 
 breed [paxs pax]
@@ -42,6 +44,7 @@ crews-own [
             current-serving-seat  ;; Indicate which is the current seat letter that the crew should serve
             mission               ;; Indicate what the crew should be doing: serving pax, moving to position or restocking trays.
             side                  ;; Indicate which side the crew should start serving
+            pax-to-skip             ;; Retains the value of how may pax the crew have skipped
           ]
 
 ;; Mission: what the crew is doing
@@ -67,7 +70,9 @@ to go
   update-crew
   update-pax
   tick
-  set total-eaten show count paxs with [eaten? =  True]
+  ;; If everybody has eaten, then stop!
+  set total-eaten count paxs with [eaten? =  True]
+  if total-eaten = total-pax [stop]
 
 end
 
@@ -92,7 +97,12 @@ to update-crew
         ;; Re-stocking trays
         ifelse (mission = 3) [ restock-trays ]
         [
-          ;; POSSIBLY SOME OTHER CREW ACTION
+          ;; End of the plane (switch sides)
+          ifelse (mission = 4) [switch-sides ]
+          [
+            ;;Mission 5
+            count-pax
+          ]
         ]
       ]
     ]
@@ -106,41 +116,40 @@ end
 ;; Mission 1: move crew to position
 to move-crew-to-position
 
+  ;; Move until find one crew or the beginning of the aisle
+  ;; Ask crew where it started to serve . count 39 pax from there and start
+
   ifelse(side = "LHS")
   [
     ;;LHS crew
-    ifelse (xcor > LHS_aisle_x)
-    [ set xcor xcor - 1 ]
-    [
-      ifelse (ycor < target-row)
-      [ set ycor ycor + 1 ]
-      [
-         ;;Position arrived, change mission to "Feed pax"
-         set mission 2
-      ]
-   ]
+    ifelse(xcor > LHS_aisle_x) [ set xcor xcor - 1 ][ move-down-the-aisle ]
   ]
   [
+
     ;;RHS crew
-    ifelse (xcor < RHS_aisle_x)
-    [ set xcor xcor + 1 ]
-    [
-      ifelse (ycor < target-row)
-      [ set ycor ycor + 1 ]
-      [
-         ;;Position arrived, change mission to "Feed pax"
-         set mission 2
-      ]
-   ]
+    ifelse (xcor < RHS_aisle_x) [ set xcor xcor + 1 ][ move-down-the-aisle]
   ]
 
-
 end
+
+to move-down-the-aisle
+  ifelse (ycor < target-row)
+   [ set ycor ycor + 1
+      let current_x xcor
+      let current_y ycor
+      let crew-id who
+     ask crews with [xcor = current_x and ycor = current_y and crew-id != who][ set mission 5 set pax-to-skip max-trays] ;;Count 39 pax to skip
+   ]
+   [
+       ;;Position arrived, change mission to "Feed pax"
+       set mission 2
+   ]
+end;
 
 ;; Mission 2: feed pax
 to serve-pax
  ;;If still have trays
-  ifelse (total-trays > 0)
+  ifelse (total-trays > 0 and ycor >= last-row)
   [
     ;;Serve pax
     let crew_x xcor ;;Current X crew coordinate to check for pax
@@ -163,9 +172,12 @@ to serve-pax
      ;;update current serving seat
      update-serving-seat
   ]
-  ;; If no more trays, change mission to 3 (re-stock trays)
   [
-    set mission 3
+    ;; If no more trays, change mission to 3 (re-stock trays) if not end of plane.
+    ifelse(ycor >= last-row)
+    [ set mission 3]
+    ;;If end of plane reach on the crew side, change to mission 4 (switchsides)
+    [ set mission 4]
   ]
 end
 
@@ -181,6 +193,69 @@ to restock-trays
     [ set xcor xcor - 1]
     set total-trays max-trays
     set mission 1
+  ]
+end
+
+;; Mission 4: Switching sides
+to switch-sides
+  ;;TO-DO
+    ;; Switch-sides and horseshoe
+end
+
+
+;; Mission 5: Counting pax to skip
+to count-pax
+  ;; If all the pax have been skipped
+  ifelse(pax-to-skip <= 0)
+  [ set mission 2] ;; Start serving them (mission 2)
+  [ update-skip-pax ]    ;; Check row to skip pax
+end
+
+to update-skip-pax
+   let crew_x xcor ;;Current X crew coordinate to check for pax
+   let crew_y ycor ;; Current Y crew coordinate to check for pax
+   let seat_x current-serving-seat;; Indicate that a new seat letter
+   let current_pax_to_skip pax-to-skip
+   foreach [1 2 3 4 5]
+   [
+     ifelse any? paxs with [xcor = crew_x + seat_x and ycor = crew_y]
+     [set pax-to-skip pax-to-skip - 1]
+     [update-pax-skip-seat]
+   ]
+
+   set ycor ycor - 1
+
+end
+
+to update-pax-skip-seat
+   ifelse(side = "LHS")
+  [
+    ;;Servinh LHS
+    ;; Checking end of outboard seats
+    ifelse (current-serving-seat = _C)
+    [ set current-serving-seat _D ]
+    ;;Checking end of inboard seats
+    [ ifelse (current-serving-seat = _E)
+      ;;Crew finished the row
+      [ set current-serving-seat _A ]
+      ;; Default case: serve the adjacent seat
+      [ set current-serving-seat current-serving-seat + 1
+        set target-row ycor]
+    ]
+  ]
+  [
+    ;;Servinh RHS
+     ;; Checking end of outboard seats
+    ifelse (current-serving-seat = _H)
+    [ set current-serving-seat _G ]
+    ;;Checking end of inboard seats
+    [ ifelse (current-serving-seat = _F)
+      ;;Crew finished the row
+      [ set current-serving-seat _K ]
+      ;; Default case: serve the adjacent seat
+      [ set current-serving-seat current-serving-seat - 1
+        set target-row ycor]
+    ]
   ]
 end
 
@@ -219,6 +294,7 @@ to update-serving-seat
 
 
 end
+
 
 to update-pax
   ask paxs
@@ -300,8 +376,20 @@ to initialize-globals
 
   set LHS_aisle_x -2
   set RHS_aisle_x 3
+  set last-row -18
 
   set patience-randomness 1000
+
+  ;; High Patience
+  ifelse(patience-level = "High Patience")[set min-patience 300]
+  [
+    ;; Medium Patience
+    ifelse(patience-level = "Medium Patience")[set min-patience 150]
+    [
+      ;;Low Patience
+      set min-patience 50
+    ]
+  ]
 
 end
 
@@ -321,7 +409,7 @@ to generate-pax
     set color pax-color
     set shape "face neutral"
 
-    set patience 300 + random patience-randomness ;;
+    set patience min-patience + random patience-randomness ;;
     set eaten? False
     set happy? True
 
@@ -365,11 +453,12 @@ to generate-crew
 
   ask crews
   [
-    set color crew-color
+    ;set color crew-color
     set shape "person"
     set target-row max-pycor - 4 ; First row LHS
     set total-trays max-trays
     set mission 1 ;;Moving to position
+    set pax-to-skip 0
 
     ifelse (total-crew-mid > 0)
     [
@@ -536,9 +625,9 @@ to generate-toilets
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-327
+231
 10
-896
+800
 580
 -1
 -1
@@ -588,7 +677,7 @@ total-crew
 total-crew
 1
 18
-4.0
+1.0
 1
 1
 NIL
@@ -625,6 +714,36 @@ NIL
 NIL
 NIL
 1
+
+PLOT
+826
+12
+1325
+230
+Patience
+NIL
+Total Pax
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"happy" 1.0 0 -13840069 true "" "plot count paxs with [shape = \"face happy\"]"
+"neutral" 1.0 0 -987046 true "" "plot count paxs with [shape = \"face neutral\"]"
+"sad" 1.0 0 -2674135 true "" "plot count paxs with [shape = \"face sad\"]"
+
+CHOOSER
+23
+153
+194
+198
+patience-level
+patience-level
+"Low Patience" "Medium Patience" "High Patience"
+2
 
 @#$#@#$#@
 ## WHAT IS IT?

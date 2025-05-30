@@ -492,7 +492,7 @@ to generate-crew
 
   ask crews
   [
-    ;;set color crew-color
+    set color crew-color
     set shape "person"
     set target-row max-pycor - 4 ;
     set total-trays max-trays
@@ -717,7 +717,7 @@ total-crew
 total-crew
 1
 8
-5.0
+3.0
 1
 1
 NIL
@@ -732,7 +732,7 @@ total-pax
 total-pax
 0
 360
-360.0
+163.0
 1
 1
 NIL
@@ -786,13 +786,49 @@ patience-level
 2
 
 @#$#@#$#@
+# 777 In-Flight Service
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+This model has for objective simulate a service delivery in an aircraft. More precisely, the goal is to generate a model to help determine how many cabin crew is necessary for a certain number of passengers in order to prove a satisfactory service for customers. The results are suppose to help companies draw insights and adapt their service delivery procedues if necessary.
+
+#### Vocabulary
+- **PAX:** Passengers
+- **AFT/MID Galley:** Where the food/drinks and service items are stored and prepare on an aircraft. Aft galley refers to the galley locacgted at the rear of an airplane. The Mid galley refers to the galley located in the middle of the aircraft. 
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+
+### Start Point
+- For this simulation, the flight is already in the following state:
+  -- The plane is in cruise altitude.
+  -- The passengers (PAX) are in their assigned seats already.
+  -- The crew is divided between boths galleys and already ready to start the service.
+
+### Main Components
+#### Agents:
+- **Crew:** Magenta color agents that have assigned an initial galley position (AFT galley or MID galley)
+- **PAX:** "Face icon" agents assigned a fixed seat number. A face icon can be: green-happy, yellow-neutral or red-unhappy.
+
+#### Patches
+ - **MID Galley:** Grey patches located in the middle of the plane. 
+ - **AFT Galley:** Grey patches located in the back of the plane.
+ - **Seat:** Blue patches with their row location letter label indicating a PAX possible location during the servce.A seat is identifies by a row and by a letter (A,B,C,D,E,F,G,H,J,K) according to its position in a row.
+
+
+### Interaction
+ - There are two main interactions in the model:
+	-- Crew-Pax: When a crew member reaches a row, it asks all the PAX weather they have eaten or not.
+	-- Crew-Crew: When a crew occupies the same patch as another crew that is serving a PAX, the former asks 
+
+
+### Assumed Facts (based on industry knowledge)
+- Each crew can serve at maximum 39 trays 
+- The mid-galley has less ovens than the aft galley. For that reason, when crew needs to re-stock their trays, they go back exclusively to the back galley to accomplish the task.
+- Once a crew has finished their side, they are expected to move to the oposite side to help their colleagues ans continue giving out more trays. This is called "horseshoeing". 
+
+
+### Graphics
+- The model contains as well a graphic representing the PAXs overall satisfaction over-time.
 
 ## HOW TO USE IT
 
@@ -808,7 +844,9 @@ patience-level
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+In order to extend the model and make it more precise, new features and interactions can be added:
+- Double-end service delivery: two crew serve together their passengers, making the food distributuion fast (for example: two passengers served at one a single tick).
+- More complex service with different round of product delivery (ex: Drinks first, tray delivery next and tea/coffee as a final round)
 
 ## NETLOGO FEATURES
 

@@ -102,7 +102,10 @@ to update-crew
           ifelse (mission = 4) [switch-sides ]
           [
             ;;Mission 5
-            count-pax
+            ifelse(direction != -1) ;; Whoever horsheshoes doesnt take the count
+            [count-pax]
+            [set mission 2] ;;Continue serving pax
+
           ]
         ]
       ]
@@ -136,7 +139,7 @@ end
 to move-down-the-aisle
 
   ifelse (ycor < target-row)
-   [ set ycor ycor + (1 * direction)
+   [ set ycor ycor + 1
       let current_x xcor
       let current_y ycor
       let crew-id who
@@ -151,35 +154,66 @@ end;
 ;; Mission 2: feed pax
 to serve-pax
  ;;If still have trays
-  ifelse (total-trays > 0 and ycor >= last-row)
+  ifelse(direction = 1)
   [
-    ;;Serve pax
-    let crew_x xcor ;;Current X crew coordinate to check for pax
-    let crew_y ycor ;; Current Y crew coordinate to check for pax
-    let tray_delivered? False ;;Flas that indicates that a paxhas been fed
-    let seat_x current-serving-seat;; Indicate that a new seat letter
+    ifelse (total-trays > 0 and ycor >= last-row)
+    [
+      ;;Serve pax
+      let crew_x xcor ;;Current X crew coordinate to check for pax
+      let crew_y ycor ;; Current Y crew coordinate to check for pax
+      let tray_delivered? False ;;Flas that indicates that a paxhas been fed
+      let seat_x current-serving-seat;; Indicate that a new seat letter
 
-     ;;Checking if there exists a pax to feed
-     if any? paxs with [xcor = crew_x + seat_x and ycor = crew_y]
-     [
-       ask paxs with [xcor = crew_x + seat_x and ycor = crew_y]
-       [
-         ;; Feed the pax
-         if (not eaten?)[ set eaten? true set tray_delivered? True]
-       ]
-     ]
-     ;; Update tray count from the crew
-     if (tray_delivered? = True) [set total-trays total-trays - 1 ]
+      ;;Checking if there exists a pax to feed
+      if any? paxs with [xcor = crew_x + seat_x and ycor = crew_y]
+      [
+        ask paxs with [xcor = crew_x + seat_x and ycor = crew_y]
+        [
+          ;; Feed the pax
+          if (not eaten?)[ set eaten? true set tray_delivered? True]
+        ]
+      ]
+      ;; Update tray count from the crew
+      if (tray_delivered? = True) [set total-trays total-trays - 1 ]
 
-     ;;update current serving seat
-     update-serving-seat
+      ;;update current serving seat
+      update-serving-seat
+    ]
+    [
+      ;; If no more trays, change mission to 3 (re-stock trays) if not end of plane.
+      ifelse(ycor >= last-row)
+      [ set mission 3]
+      ;;If end of plane reach on the crew side, change to mission 4 (switchsides)
+      [ set mission 4]
+    ]
   ]
   [
-    ;; If no more trays, change mission to 3 (re-stock trays) if not end of plane.
-    ifelse(ycor >= last-row)
-    [ set mission 3]
-    ;;If end of plane reach on the crew side, change to mission 4 (switchsides)
-    [ set mission 4]
+    ifelse(total-trays > 0 and ycor < max-pycor - 4)
+    [
+       ;;Serve pax
+      let crew_x xcor ;;Current X crew coordinate to check for pax
+      let crew_y ycor ;; Current Y crew coordinate to check for pax
+      let tray_delivered? False ;;Flas that indicates that a paxhas been fed
+      let seat_x current-serving-seat;; Indicate that a new seat letter
+
+      ;;Checking if there exists a pax to feed
+      if any? paxs with [xcor = crew_x + seat_x and ycor = crew_y]
+      [
+        ask paxs with [xcor = crew_x + seat_x and ycor = crew_y]
+        [
+          ;; Feed the pax
+          if (not eaten?)[ set eaten? true set tray_delivered? True]
+        ]
+      ]
+      ;; Update tray count from the crew
+      if (tray_delivered? = True) [set total-trays total-trays - 1 ]
+
+      ;;update current serving seat
+      update-serving-seat
+    ]
+    [
+      set mission 3
+    ]
   ]
 end
 
@@ -275,7 +309,7 @@ to update-serving-seat
     [ ifelse (current-serving-seat = _E)
       ;;Crew finished the row
       [ set current-serving-seat _A
-        set ycor ycor - 1]
+        set ycor ycor - (1 * direction)]
       ;; Default case: serve the adjacent seat
       [ set current-serving-seat current-serving-seat + 1
         set target-row ycor]
@@ -290,7 +324,7 @@ to update-serving-seat
     [ ifelse (current-serving-seat = _F)
       ;;Crew finished the row
       [ set current-serving-seat _K
-        set ycor ycor - 1]
+        set ycor ycor - (1 * direction)]
       ;; Default case: serve the adjacent seat
       [ set current-serving-seat current-serving-seat - 1
         set target-row ycor]
@@ -458,7 +492,7 @@ to generate-crew
 
   ask crews
   [
-    set color crew-color
+    ;;set color crew-color
     set shape "person"
     set target-row max-pycor - 4 ;
     set total-trays max-trays
@@ -683,7 +717,7 @@ total-crew
 total-crew
 1
 8
-3.0
+5.0
 1
 1
 NIL
@@ -749,7 +783,7 @@ CHOOSER
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
-0
+2
 
 @#$#@#$#@
 ## WHAT IS IT?

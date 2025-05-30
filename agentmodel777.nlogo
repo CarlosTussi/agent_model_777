@@ -44,7 +44,8 @@ crews-own [
             current-serving-seat  ;; Indicate which is the current seat letter that the crew should serve
             mission               ;; Indicate what the crew should be doing: serving pax, moving to position or restocking trays.
             side                  ;; Indicate which side the crew should start serving
-            pax-to-skip             ;; Retains the value of how may pax the crew have skipped
+            pax-to-skip           ;; Retains the value of how may pax the crew have skipped
+            direction             ;; 1 FWD-AFT or -1 AFT-FWD
           ]
 
 ;; Mission: what the crew is doing
@@ -133,12 +134,13 @@ to move-crew-to-position
 end
 
 to move-down-the-aisle
+
   ifelse (ycor < target-row)
-   [ set ycor ycor + 1
+   [ set ycor ycor + (1 * direction)
       let current_x xcor
       let current_y ycor
       let crew-id who
-     ask crews with [xcor = current_x and ycor = current_y and crew-id != who][ set mission 5 set pax-to-skip max-trays] ;;Count 39 pax to skip
+     ask crews with [xcor = current_x and ycor = current_y and crew-id != who and mission = 2][ set mission 5 set pax-to-skip max-trays] ;;Count 39 pax to skip
    ]
    [
        ;;Position arrived, change mission to "Feed pax"
@@ -198,8 +200,11 @@ end
 
 ;; Mission 4: Switching sides
 to switch-sides
-  ;;TO-DO
     ;; Switch-sides and horseshoe
+  ifelse(side = "RHS")[set side "LHS" set current-serving-seat _A][set side "RHS" set current-serving-seat _K]
+  set mission 1
+  set target-row max-pycor - (2 * total_rows) - 11
+  set direction -1
 end
 
 
@@ -455,10 +460,11 @@ to generate-crew
   [
     set color crew-color
     set shape "person"
-    set target-row max-pycor - 4 ; First row LHS
+    set target-row max-pycor - 4 ;
     set total-trays max-trays
     set mission 1 ;;Moving to position
     set pax-to-skip 0
+    set direction 1
 
     ifelse (total-crew-mid > 0)
     [
@@ -676,8 +682,8 @@ SLIDER
 total-crew
 total-crew
 1
-18
-1.0
+8
+3.0
 1
 1
 NIL
@@ -743,7 +749,7 @@ CHOOSER
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
-1
+0
 
 @#$#@#$#@
 ## WHAT IS IT?

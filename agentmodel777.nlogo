@@ -9,7 +9,7 @@ globals [
   seats-coord         ;; List that contains the coordinate of all the seats in the aircraft
   mid-galley-coord    ;; List that contains the coordinate for patches of the mid galley
   aft-galley-coord    ;; List that contains the coordinate for patches of the aft galley
-  patience-randomness ;; Different level of patience passengers can take
+  ;;patience-randomness ;; Different level of patience passengers can take
   min-patience        ;; The quantification of minimum pax patience
   max-trays           ;; Max number of trays a crew can carry
   _A
@@ -27,7 +27,8 @@ globals [
   RHS_aisle_x     ;;X coordinate of RHS aisle
 
   total-eaten     ;; Total number of PAX that have eaten (stop criteria)
-  last-row        ;;Indicate the last row to serve
+  last-row        ;; Indicate the last row to serve
+  cum-unhappy     ;; Cumulative count of any PAX that have once become unhappy
 ]
 
 breed [paxs pax]
@@ -35,6 +36,7 @@ paxs-own [
            patience
            eaten?
            happy?
+           once-unhappy?
          ]
 
 breed [crews crew]
@@ -101,7 +103,6 @@ to update-crew
           ;; End of the plane (switch sides)
           ifelse (mission = 4) [switch-sides ]
           [
-            ;;Mission 5
             ifelse(direction != -1) ;; Whoever horsheshoes doesnt take the count
             [count-pax]
             [set mission 2] ;;Continue serving pax
@@ -188,7 +189,7 @@ to serve-pax
     ]
   ]
   [
-    ifelse(total-trays > 0 and ycor < max-pycor - 4)
+    ifelse(total-trays > 0 and ycor <= max-pycor - 4)
     [
        ;;Serve pax
       let crew_x xcor ;;Current X crew coordinate to check for pax
@@ -336,6 +337,7 @@ end
 
 
 to update-pax
+  let current-cum-unhappy 0
   ask paxs
   [
     ifelse (eaten? = true)
@@ -349,9 +351,15 @@ to update-pax
       [
         set shape "face sad"
         set color red
+        set current-cum-unhappy current-cum-unhappy + 1
+        set once-unhappy? True
       ]
     ]
   ]
+
+  set cum-unhappy max (list cum-unhappy current-cum-unhappy)
+
+
 
 end
 
@@ -417,7 +425,6 @@ to initialize-globals
   set RHS_aisle_x 3
   set last-row -18
 
-  set patience-randomness 1000
 
   ;; High Patience
   ifelse(patience-level = "High Patience")[set min-patience 300]
@@ -429,6 +436,9 @@ to initialize-globals
       set min-patience 50
     ]
   ]
+
+  set cum-unhappy 0
+
 
 end
 
@@ -448,9 +458,10 @@ to generate-pax
     set color pax-color
     set shape "face neutral"
 
-    set patience min-patience + random patience-randomness ;;
+    set patience min-patience + random patience-add-randomness ;;
     set eaten? False
     set happy? True
+    set once-unhappy? False
 
     ;; Seat allocation
     let seat-coord-index random length seats-coord ;; Will indicate seat index in the list of seat coordinates (seats-coord)
@@ -717,7 +728,7 @@ total-crew
 total-crew
 1
 8
-3.0
+1.0
 1
 1
 NIL
@@ -732,7 +743,7 @@ total-pax
 total-pax
 0
 360
-163.0
+360.0
 1
 1
 NIL
@@ -758,7 +769,7 @@ NIL
 PLOT
 826
 12
-1325
+1249
 230
 Patience
 NIL
@@ -776,33 +787,128 @@ PENS
 "sad" 1.0 0 -2674135 true "" "plot count paxs with [shape = \"face sad\"]"
 
 CHOOSER
-23
-153
-194
-198
+20
+214
+195
+259
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
+0
+
+MONITOR
+825
+344
+983
+389
+Current Unhappy PAX %
+((count paxs with [ shape = \"face sad\"]) / total-pax) * 100
 2
+1
+11
+
+SLIDER
+20
+175
+194
+208
+patience-add-randomness
+patience-add-randomness
+100
+1500
+750.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+1091
+292
+1251
+337
+Once Unhappy
+(count paxs with [once-unhappy? = True])
+17
+1
+11
+
+TEXTBOX
+1121
+266
+1271
+284
+Cumulative Stats
+13
+15.0
+1
+
+MONITOR
+1092
+343
+1252
+388
+Once Unhappy %
+((count paxs with [once-unhappy? = True]) / total-pax) * 100
+2
+1
+11
+
+TEXTBOX
+860
+263
+1010
+281
+Current Stats
+13
+104.0
+1
+
+MONITOR
+826
+287
+983
+332
+Current Unhappy PAX
+(count paxs with [ shape = \"face sad\"])
+17
+1
+11
 
 @#$#@#$#@
 # 777 In-Flight Service
 ## WHAT IS IT?
 
-This model has for objective simulate a service delivery in an aircraft. More precisely, the goal is to generate a model to help determine how many cabin crew is necessary for a certain number of passengers in order to prove a satisfactory service for customers. The results are suppose to help companies draw insights and adapt their service delivery procedues if necessary.
+This model has for objective simulate a service delivery in an aircraft. More precisely, *the goal is to generate a model to help determine how many cabin crew is necessary for a certain number of passengers in order to provide a satisfactory service for customers.* 
+
+The results are suppose to help companies draw insights and adapt their service delivery procedues if necessary.
+
+
+## HOW IT WORKS
+
+### Overview
+
+As a generic overview, the model simulates cabin crew moving along the aisle in the cabin and serving trays (with meals) to PAX. As the time passes,  PAX that have not yet been served become more impatient and possibily unhappy with the service. The PAX are only happy when they have eaten.
+
+The simulation finishes when all the PAX are happy and fed.
+
+
+For this simulation, the flight is in the following intial state:
+  -- The plane is in cruise altitude.
+  -- The PAX are in their assigned seats already.
+  -- The crew is divided between boths galleys and already ready to start the service.
+
+#### Assumed Facts (based on industry knowledge)
+- Each crew can serve at maximum 39 trays 
+- The mid-galley has less ovens than the aft galley. For that reason, when crew needs to re-stock their trays, they go back exclusively to the back galley to accomplish the task.
+- Once a crew has finished their side, they are expected to move to the oposite side to help their colleagues ans continue giving out more trays. This is called "horseshoeing".
 
 #### Vocabulary
 - **PAX:** Passengers
 - **AFT/MID Galley:** Where the food/drinks and service items are stored and prepare on an aircraft. Aft galley refers to the galley locacgted at the rear of an airplane. The Mid galley refers to the galley located in the middle of the aircraft. 
+- **Horseshoe:** Cabin crew jargon to indicate the act of switching sides during the service. 
 
-## HOW IT WORKS
 
-
-### Start Point
-- For this simulation, the flight is already in the following state:
-  -- The plane is in cruise altitude.
-  -- The passengers (PAX) are in their assigned seats already.
-  -- The crew is divided between boths galleys and already ready to start the service.
 
 ### Main Components
 #### Agents:
@@ -814,33 +920,56 @@ This model has for objective simulate a service delivery in an aircraft. More pr
  - **AFT Galley:** Grey patches located in the back of the plane.
  - **Seat:** Blue patches with their row location letter label indicating a PAX possible location during the servce.A seat is identifies by a row and by a letter (A,B,C,D,E,F,G,H,J,K) according to its position in a row.
 
+### Crew Missions
+
+At each tick, a crew member moves one position towards their mission objective:
+	-- **Move to serving position:** At each tick, crew moves towards the initial serving row. By default all crew have the first row as their destination and they communicate when they share a patch, to know where they should start serving so as to not overlap the serving rows.
+	-- **Serve PAX:** Upon entering this state, the crew agent starts serving the PAX and changing their satisfaction status to green-happy. This missioon continues until tray count is zero.
+	-- **Re-stock trays:** When crew does not have more trays, it changes its objective and move towards the AFT galley for re-stocking before resuming serving PAX.
+	-- **Switch sides:** Once a crew finish their duties in one side, they "horseshoe" (change sides) to help on the other side, serving from the back of the plane until they meet with another crew.
 
 ### Interaction
- - There are two main interactions in the model:
-	-- Crew-Pax: When a crew member reaches a row, it asks all the PAX weather they have eaten or not.
-	-- Crew-Crew: When a crew occupies the same patch as another crew that is serving a PAX, the former asks 
+ There are two main interactions in the model:
+	- **Crew-Pax:** When a crew member reaches a row, it asks all the PAX weather they have eaten or not.
+	- **Crew-Crew:** When a crew occupies the same patch as another crew that is serving a PAX, the former takes the count of PAX to know which row to start serving their PAX.
+	- **Crew-Galley:** Crew gets total amount of trays re-stocked when passing trhough the AFT galley.
 
-
-### Assumed Facts (based on industry knowledge)
-- Each crew can serve at maximum 39 trays 
-- The mid-galley has less ovens than the aft galley. For that reason, when crew needs to re-stock their trays, they go back exclusively to the back galley to accomplish the task.
-- Once a crew has finished their side, they are expected to move to the oposite side to help their colleagues ans continue giving out more trays. This is called "horseshoeing". 
-
-
-### Graphics
-- The model contains as well a graphic representing the PAXs overall satisfaction over-time.
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+1) In order to start a simulation, it is necessary to first generate the plane, crew and PAX by clicking the **setup** button after the customizations.
+
+2) Once the scenario is generated, please click **go** to start the simulation.
+
+### Customization
+
+**total-crew:**
+
+**total-pax:**
+
+**patience-add-randomness:**
+
+**patience-level:**
 
 ## THINGS TO NOTICE
 
-(suggested things for the user to notice while running the model)
+
+### Plots
+- The model contains as well a graphic representing the PAXs overall satisfaction over-time.
+
+### Monitors
+- Current Unhappy PAX
+- Current Unhappy PAX %
+- Once Unhappy
+- Once Unhappy %
 
 ## THINGS TO TRY
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+**PAX profile:** External factors, such as tired PAX from connections, different time of the day, etc, can influence the patience level of customers. For that reason, the patience level can be adjusted to simulate different PAX profile and it should be taken into account starting a new simulation.
+
+**Stress stest:** Max number of passengers with minimum crew. This simulation could be very important as it could give insight into how the service would be performed in situations such as medical case, emergencies, etc, when the service is conitnuing but the total number of crews is limited by the current exceptional situation.
+
+**Lightload flights:** In flights where there a very few PAX, less crew might be needed depending on the stress level of the PAX (which can change depending on the passenger profile).
 
 ## EXTENDING THE MODEL
 

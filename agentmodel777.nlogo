@@ -390,7 +390,7 @@ end
 to setup
   clear-all
 
-  import-drawing "planeshape2.png"
+  import-drawing  "plane.png"
 
   ;; Initialize global variables
   initialize-globals
@@ -712,8 +712,8 @@ GRAPHICS-WINDOW
 1
 1
 0
-1
-1
+0
+0
 1
 -25
 25

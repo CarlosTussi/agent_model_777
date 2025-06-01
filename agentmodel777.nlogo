@@ -390,6 +390,8 @@ end
 to setup
   clear-all
 
+  import-drawing "planeshape2.png"
+
   ;; Initialize global variables
   initialize-globals
 
@@ -749,7 +751,7 @@ total-crew
 total-crew
 1
 8
-8.0
+4.0
 1
 1
 NIL
@@ -815,7 +817,7 @@ CHOOSER
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
-0
+1
 
 MONITOR
 825

@@ -112,7 +112,8 @@ to update-crew
       ]
     ]
 
-
+    ;; Avoid moving out of limits from the aircraft
+    if(ycor < max-pycor - (2 * total_rows) - 11)[set mission 4 set ycor ycor + 1]
   ]
 
 
@@ -179,6 +180,8 @@ to serve-pax
 
       ;;update current serving seat
       update-serving-seat
+      let current-trays total-trays
+      ask other crews-here with [mission = 2][ set mission 5 set pax-to-skip current-trays] ;;Count 39 pax to skip
     ]
     [
       ;; If no more trays, change mission to 3 (re-stock trays) if not end of plane.
@@ -186,6 +189,15 @@ to serve-pax
       [ set mission 3]
       ;;If end of plane reach on the crew side, change to mission 4 (switchsides)
       [ set mission 4]
+    ]
+
+    ;; If both pax are overlapping, take the count
+    let current-trays total-trays
+    ask other paxs-here with[mission = 2]
+    [
+      show "testing"
+      ;; Count-pax
+      set mission 5
     ]
   ]
   [
@@ -267,6 +279,7 @@ to update-skip-pax
 
 end
 
+;;Skip row all together
 to update-pax-skip-seat
    ifelse(side = "LHS")
   [
@@ -400,7 +413,7 @@ to initialize-globals
   set galley-color grey
   set toilet-color red
   set pax-color yellow
-  set crew-color magenta
+  set crew-color 137
 
   set max-trays 39;
   set total_sections 2
@@ -622,6 +635,7 @@ to generate-galleys
   let x_cord -6
   ;; MID Galley
   ask patches with [ (pxcor >= x_cord + 5 and pxcor <= x_cord + 8) and (pycor <= max-pycor - total_rows - 4 and pycor >= max-pycor - total_rows - 7) ][ set pcolor galley-color ]
+  ask patches with [(pxcor = x_cord + 7) and (pycor = max-pycor - total_rows - 6)][ set plabel "MID"]
 
   ;; Save mid galley coordinates for crew creation
   let mid-index-x (x_cord + 5)
@@ -641,6 +655,7 @@ to generate-galleys
 
   ;; AFT Galley
   ask patches with [ (pxcor >= x_cord + 5 and pxcor <= x_cord + 8) and (pycor <= max-pycor -(2 * total_rows) - 8 and pycor >= max-pycor - (2 * total_rows) - 11) ] [ set pcolor galley-color ]
+  ask patches with [(pxcor = x_cord + 7) and (pycor = max-pycor -(2 * total_rows) - 10)][ set plabel "AFT"]
 
   ;; Save aft galley coordinates for crew creation
   let aft-index-x (x_cord + 5)
@@ -662,16 +677,22 @@ to generate-toilets
   let x_cord -6
   ;; FWD Toilets
   ask patches with [ (pxcor >= x_cord + 1 and pxcor <= x_cord + 3) and (pycor <= max-pycor - 2 and pycor >= max-pycor - 3)][ set pcolor toilet-color]
+  ask patches with [(pxcor = x_cord + 2) and (pycor = max-pycor - 2) ] [set plabel "WC"]
   ask patches with [ (pxcor >= x_cord + 10 and pxcor <= x_cord + 12) and (pycor <= max-pycor - 2 and pycor >= max-pycor - 3)][ set pcolor toilet-color]
+  ask patches with [(pxcor = x_cord + 11) and (pycor = max-pycor - 2) ] [set plabel "WC"]
 
   ;; MID Toilets
   ask patches with [ (pxcor >= x_cord + 1 and pxcor <= x_cord + 3) and (pycor <= max-pycor - total_rows - 4 and pycor >= max-pycor - total_rows - 5)][ set pcolor toilet-color]
+  ask patches with [(pxcor = x_cord + 2) and (pycor = max-pycor - total_rows - 4) ] [set plabel "WC"]
   ask patches with [ (pxcor >= x_cord + 10 and pxcor <= x_cord + 12) and (pycor <= max-pycor - total_rows - 4 and pycor >= max-pycor - total_rows - 5)][ set pcolor toilet-color]
+  ask patches with [(pxcor = x_cord + 11) and (pycor = max-pycor - total_rows - 4) ] [set plabel "WC"]
 
   ;; AFT Toilets
   ;ask patches with [pxcor = and pycor = ][ set pcolor toilet-color]
   ask patches with [ (pxcor >= x_cord + 1 and pxcor <= x_cord + 3) and (pycor <= max-pycor - (2 * total_rows) - 8 and pycor >= max-pycor - (2 * total_rows) - 9)][ set pcolor toilet-color]
+  ask patches with [(pxcor = x_cord + 2) and (pycor = max-pycor - (2 * total_rows) - 8 ) ] [set plabel "WC"]
   ask patches with [ (pxcor >= x_cord + 10 and pxcor <= x_cord + 12) and (pycor <= max-pycor - (2 * total_rows) - 8 and pycor >= max-pycor - (2 * total_rows) - 9)][ set pcolor toilet-color]
+  ask patches with [(pxcor = x_cord + 11) and (pycor = max-pycor - (2 * total_rows) - 8 ) ] [set plabel "WC"]
 
 end
 @#$#@#$#@
@@ -728,7 +749,7 @@ total-crew
 total-crew
 1
 8
-2.0
+8.0
 1
 1
 NIL
@@ -794,7 +815,7 @@ CHOOSER
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
-1
+0
 
 MONITOR
 825
@@ -816,7 +837,7 @@ patience-add-randomness
 patience-add-randomness
 100
 1500
-752.0
+750.0
 1
 1
 NIL
@@ -840,7 +861,7 @@ TEXTBOX
 284
 Cumulative Stats
 13
-15.0
+95.0
 1
 
 MONITOR
@@ -861,7 +882,7 @@ TEXTBOX
 281
 Current Stats
 13
-104.0
+95.0
 1
 
 MONITOR
@@ -912,7 +933,7 @@ For this simulation, the flight is in the following intial state:
 
 ### Main Components
 #### Agents:
-- **Crew:** Magenta color agents that have assigned an initial galley position (AFT galley or MID galley)
+- **Crew:** Pink color agents that have assigned an initial galley position (AFT galley or MID galley)
 - **PAX:** "Face icon" agents assigned a fixed seat number. A face icon can be: green-happy, yellow-neutral or red-unhappy.
 
 #### Patches
@@ -975,7 +996,7 @@ At each tick, a crew member moves one position towards their mission objective:
 
 In order to extend the model and make it more precise, new features and interactions can be added:
 - Double-end service delivery: two crew serve together their passengers, making the food distributuion fast (for example: two passengers served at one a single tick).
-- More complex service with different round of product delivery (ex: Drinks first, tray delivery next and tea/coffee as a final round)
+- More complex service with different round of product delivery (ex: Drinks first, tray delivery next and tea/coffee and tray collection as a final round)
 - Allow PAX to stand up and move around the cabin to go to the toilet for example.
 - Introduce PAX call-bells to summon a flight attendand to the seat.
 

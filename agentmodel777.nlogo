@@ -728,7 +728,7 @@ total-crew
 total-crew
 1
 8
-1.0
+2.0
 1
 1
 NIL
@@ -794,7 +794,7 @@ CHOOSER
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
-0
+1
 
 MONITOR
 825
@@ -816,7 +816,7 @@ patience-add-randomness
 patience-add-randomness
 100
 1500
-750.0
+752.0
 1
 1
 NIL
@@ -976,14 +976,9 @@ At each tick, a crew member moves one position towards their mission objective:
 In order to extend the model and make it more precise, new features and interactions can be added:
 - Double-end service delivery: two crew serve together their passengers, making the food distributuion fast (for example: two passengers served at one a single tick).
 - More complex service with different round of product delivery (ex: Drinks first, tray delivery next and tea/coffee as a final round)
+- Allow PAX to stand up and move around the cabin to go to the toilet for example.
+- Introduce PAX call-bells to summon a flight attendand to the seat.
 
-## NETLOGO FEATURES
-
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
-
-## RELATED MODELS
-
-(models in the NetLogo Models Library and elsewhere which are of related interest)
 
 ## CREDITS AND REFERENCES
 

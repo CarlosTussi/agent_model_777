@@ -768,7 +768,7 @@ total-crew
 total-crew
 1
 8
-2.0
+3.0
 1
 1
 NIL
@@ -783,7 +783,7 @@ total-pax
 total-pax
 0
 360
-360.0
+300.0
 1
 1
 NIL
@@ -834,7 +834,7 @@ CHOOSER
 patience-level
 patience-level
 "Low Patience" "Medium Patience" "High Patience"
-2
+0
 
 MONITOR
 825
@@ -919,9 +919,16 @@ Current Unhappy PAX
 # 777 In-Flight Service
 ## WHAT IS IT?
 
-This model has for objective simulate a service delivery in an aircraft. More precisely, *the goal is to generate a model to help determine how many cabin crew is necessary for a certain number of passengers in order to provide a satisfactory service for customers.* 
+This model has for objective simulate a service delivery in an aircraft. 
+More precisely, **the goal is to generate a model to help determine how many cabin crew is necessary to provide the meal service for passengers while reducing to a minimum the amount of unhappy customers.** 
 
 The results are suppose to help companies draw insights and adapt their service delivery procedues if necessary.
+
+#### Vocabulary
+- **PAX:** Passengers
+- **AFT/MID Galley:** Where the food/drinks and service items are stored and prepared i an aircraft. Aft galley refers to the galley located at the rear of an airplane. The Mid galley refers to the galley located in the middle of the aircraft. 
+- **Horseshoe:** Cabin crew jargon to indicate the act of switching sides during the service. 
+
 
 
 ## HOW IT WORKS
@@ -938,16 +945,10 @@ For this simulation, the flight is in the following intial state:
   -- The PAX are in their assigned seats already.
   -- The crew is divided between boths galleys and already ready to start the service.
 
-#### Assumed Facts (based on industry knowledge)
-- Each crew can serve at maximum 39 trays 
+#### Assumed Facts 
+- Each crew can serve at maximum 39 trays (industry knowledge)
 - The mid-galley has less ovens than the aft galley. For that reason, when crew needs to re-stock their trays, they go back exclusively to the back galley to accomplish the task.
-- Once a crew has finished their side, they are expected to move to the oposite side to help their colleagues ans continue giving out more trays. This is called "horseshoeing".
-
-#### Vocabulary
-- **PAX:** Passengers
-- **AFT/MID Galley:** Where the food/drinks and service items are stored and prepare on an aircraft. Aft galley refers to the galley locacgted at the rear of an airplane. The Mid galley refers to the galley located in the middle of the aircraft. 
-- **Horseshoe:** Cabin crew jargon to indicate the act of switching sides during the service. 
-
+- Once a crew has finished their side, they are expected to move to the oposite side to help their colleagues and to continue giving out more trays. This is called "horseshoeing".
 
 
 ### Main Components
@@ -963,15 +964,15 @@ For this simulation, the flight is in the following intial state:
 ### Crew Missions
 
 At each tick, a crew member moves one position towards their mission objective:
-	-- **Move to serving position:** At each tick, crew moves towards the initial serving row. By default all crew have the first row as their destination and they communicate when they share a patch, to know where they should start serving so as to not overlap the serving rows.
-	-- **Serve PAX:** Upon entering this state, the crew agent starts serving the PAX and changing their satisfaction status to green-happy. This missioon continues until tray count is zero.
-	-- **Re-stock trays:** When crew does not have more trays, it changes its objective and move towards the AFT galley for re-stocking before resuming serving PAX.
-	-- **Switch sides:** Once a crew finish their duties in one side, they "horseshoe" (change sides) to help on the other side, serving from the back of the plane until they meet with another crew.
+	-- **Move to serving position:** At each tick, crew moves towards the initial serving row. By default all crew have the first row as their destination and they communicate when they share a patch to know where they should start serving so as to not overlap the serving rows.
+	-- **Serve PAX:** Upon entering this state, the crew agent starts serving the PAX and changing their satisfaction status to green-happy. This mission continues until the tray count is zero.
+	-- **Re-stock trays:** When a crew does not have any more trays, he changes his objective and move towards the AFT galley for re-stocking before resuming serving PAX.
+	-- **Switch sides:** Once a crew finishes their duties in one side, they "horseshoe" (change sides) to help on the other side, serving from the back of the plane until they meet with another crew.
 
 ### Interaction
  There are two main interactions in the model:
 	- **Crew-Pax:** When a crew member reaches a row, it asks all the PAX weather they have eaten or not.
-	- **Crew-Crew:** When a crew occupies the same patch as another crew that is serving a PAX, the former takes the count of PAX to know which row to start serving their PAX.
+	- **Crew-Crew:** When a crew occupies the same patch as another crew that is serving a PAX, the former takes the count to know which row to start serving their PAX.
 	- **Crew-Galley:** Crew gets total amount of trays re-stocked when passing trhough the AFT galley.
 
 
@@ -1022,27 +1023,30 @@ The following statistics and plot are available to quantify the results of the s
 
 ## THINGS TO TRY
 
-**PAX profile:** External factors, such as tired PAX from connections, different time of the day, etc, can influence the patience level of customers. For that reason, the patience level can be adjusted to simulate different PAX profile and it should be taken into account starting a new simulation.
+**PAX profile:** External factors, such as tired PAX from connections, different time of the day, etc, can influence the patience level of customers. For that reason, the patience level can be adjusted to simulate different PAX profile and it should be taken into account when starting a new simulation.
 
-**Stress stest:** Max number of passengers with minimum crew. This simulation could be very important as it could give insight into how the service would be performed in situations such as medical case, emergencies, etc, when the service is conitnuing but the total number of crews is limited by the current exceptional situation.
+**Stress stest:** Max number of passengers with minimum crew. This simulation could be very important as it could provide insight into how the service would be performed in situations such as medical case, emergencies, etc, when the service has to continue but the total number of crews is limited by the current exceptional situation.
 
-**Lightload flights:** In flights where there a very few PAX, less crew might be needed depending on the stress level of the PAX (which can change depending on the passenger profile).
+**Light-load flights:** In flights where there a very few PAX, less crew might be needed depending on the stress level of the PAX (which can change depending on the passenger profile).
 
 ## EXTENDING THE MODEL
 
 In order to extend the model and make it more precise, new features and interactions can be added:
-- Double-end service delivery: two crew serve together their passengers, making the food distributuion fast (for example: two passengers served at one a single tick).
+- Double-end service delivery: two crew serve together their passengers, making the food distributuion fast (for example: two passengers served at one single tick).
 - More complex service with different round of product delivery (ex: Drinks first, tray delivery next and tea/coffee and tray collection as a final round)
-- Allow PAX to stand up and move around the cabin to go to the toilet for example.
-- Introduce PAX call-bells to summon a flight attendand to the seat.
+- Allow PAX to stand up and move around the cabin to go to the toilet, for example, which would block the passage and would require crew to move away to give space to the PAX to pass.
+- Introduce PAX call-bells to summon a flight attendand to the seat which would require crew to attend to the PAX before resuming with the service.
 
 
 ## CREDITS AND REFERENCES
 
-* Simulation assumptions inspired on previous industry knowledge.
+* Simulation assumptions inspired by previous industry knowledge.
 * Seatmap inspired by B777-200 economy class section.
+* Project for DSTI School of Engineering's Agent Based Modeling discipline as part of the MSc in Data Science and AI program.
 
 **Web Version**: https://carlostussi.github.io/agent_model_777/
+
+Carlos Eduardo Tussi Leite - 2025
 @#$#@#$#@
 default
 true
